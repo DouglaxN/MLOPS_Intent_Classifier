@@ -1,0 +1,10 @@
+.env
+__pycache__
+wandb
+models
+.DS_Store
+.pytest_cache/
+.coverage
+htmlcov/
+.venv/
+md/
