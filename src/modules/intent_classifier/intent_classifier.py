@@ -187,7 +187,13 @@ def fetch_artifact_from_wandb(model_full_name: str) -> Tuple[str, str]:
     try:
         api = wandb.Api()
         artifact = api.artifact(model_full_name, type='model')
-    except wandb.errors.CommError as e:
+    except Exception as e:
+        fallback_dir = Path(os.path.dirname(__file__)) / "fallback_models"
+        fb_model = fallback_dir / "model.keras"
+        fb_config = fallback_dir / "model_config.yml"
+        if fb_model.exists() and fb_config.exists():
+            print(f"W&B fallback: using bundled model from {fallback_dir} ({e})")
+            return str(fb_model), str(fb_config)
         raise ValueError(f"Could not fetch artifact '{model_full_name}' from W&B. Ensure the path is correct and you are logged in. Original error: {e}")
 
     # Create a target directory for the download
@@ -275,7 +281,7 @@ class IntentClassifier:
         self._setup_onehot_encoder()
 
         # Set up W&B run
-        if self.wandb_project:
+        if self.wandb_project and self.training_data:
             print(f"Setting up W&B project: {self.wandb_project}")
             wandb.login(key=os.environ.get("WANDB_API_KEY"))
             self.wandb_run = wandb.init(project=self.wandb_project, config=self.config.__dict__)
@@ -285,7 +291,7 @@ class IntentClassifier:
                 self.wandb_run.log_artifact(artifact)
         else:
             self.wandb_run = None
-            print("W&B project not set. No W&B run will be created.")
+            print("W&B run skipped (inference mode or project not set).")
 
     def _load_config(self, config: Optional[Union[str, Config]]) -> None:
         """
